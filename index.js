@@ -97,4 +97,14 @@ client.once('ready', () => {
   console.log(`✅ S-V Protect connecté en tant que ${client.user.tag}`);
 });
 
+// Serveur HTTP minimal pour Render (UptimeRobot)
+const http = require('http');
+http.createServer((req, res) => {
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
+  res.write("S-V Protect is running!");
+  res.end();
+}).listen(process.env.PORT || 3000, () => {
+  console.log(`📡 Serveur web démarré sur le port ${process.env.PORT || 3000}`);
+});
+
 client.login(process.env.TOKEN);
