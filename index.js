@@ -247,6 +247,7 @@ client.on('interactionCreate', async interaction => {
 
 client.once('ready', () => {
   console.log(`✅ S-V Protect connecté en tant que ${client.user.tag}`);
+  client.user.setActivity('@loyalmadog', { type: require('discord.js').ActivityType.Playing });
 });
 
 // Serveur HTTP minimal pour Render (UptimeRobot)
