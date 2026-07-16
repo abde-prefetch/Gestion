@@ -60,15 +60,70 @@ if (fs.existsSync(eventsPath)) {
   }
 }
 
-const { ChannelType, PermissionFlagsBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, AttachmentBuilder } = require('discord.js');
+const { ChannelType, PermissionFlagsBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, AttachmentBuilder, StringSelectMenuBuilder } = require('discord.js');
+
+// Catégories de tickets
+const TICKET_CATEGORIES = {
+  ticket_recrutement: { label: 'Recrutement', emoji: '📋' },
+  ticket_question:    { label: 'Question',    emoji: '❓' },
+  ticket_gangwars:   { label: 'Gang Wars',   emoji: '⚔️' },
+};
 
 client.on('interactionCreate', async interaction => {
-  if (!interaction.isButton()) return;
+  if (!interaction.isButton() && !interaction.isStringSelectMenu()) return;
 
   const guildId = interaction.guild.id;
   const config = client.db.getGuildConfig(guildId);
 
-  // --- CRÉATION DE TICKET ---
+  // --- SÉLECTION DE CATÉGORIE (Select Menu) ---
+  if (interaction.customId === 'ticket_category_select') {
+    const selected = interaction.values[0]; // ex: 'ticket_recrutement'
+    const category = TICKET_CATEGORIES[selected];
+    if (!category) return;
+
+    await interaction.deferReply({ ephemeral: true });
+
+    const existingChannel = interaction.guild.channels.cache.find(
+      c => c.name === `ticket-${interaction.user.username.toLowerCase()}`
+    );
+    if (existingChannel) {
+      return interaction.editReply({ content: `❌ Vous avez déjà un ticket ouvert ici : ${existingChannel}` });
+    }
+
+    try {
+      const channel = await interaction.guild.channels.create({
+        name: `ticket-${interaction.user.username}`,
+        type: ChannelType.GuildText,
+        topic: `Ticket de ${interaction.user.id} | Catégorie: ${category.label}`,
+        permissionOverwrites: [
+          { id: interaction.guild.roles.everyone.id, deny: [PermissionFlagsBits.ViewChannel] },
+          { id: interaction.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory] },
+        ],
+      });
+
+      const welcomeEmbed = new EmbedBuilder()
+        .setTitle(`${category.emoji} Ticket — ${category.label}`)
+        .setDescription(`Bonjour ${interaction.user}, votre ticket **${category.label}** a bien été créé.\nL'équipe du serveur vous répondra dès que possible.`)
+        .setColor(config.theme || '#5865F2')
+        .setTimestamp();
+
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId('close_ticket')
+          .setLabel('Fermer le ticket')
+          .setEmoji('🔒')
+          .setStyle(ButtonStyle.Danger)
+      );
+
+      await channel.send({ content: `${interaction.user} | @here`, embeds: [welcomeEmbed], components: [row] });
+      return interaction.editReply({ content: `✅ Votre ticket **${category.label}** a été créé : ${channel}` });
+    } catch (err) {
+      console.error(err);
+      return interaction.editReply({ content: "❌ Impossible de créer le ticket." });
+    }
+  }
+
+  // --- CRÉATION DE TICKET (ancien bouton, gardé pour compatibilité) ---
   if (interaction.customId === 'create_ticket') {
     await interaction.deferReply({ ephemeral: true });
 
