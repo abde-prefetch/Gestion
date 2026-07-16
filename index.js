@@ -78,6 +78,11 @@ client.on('interactionCreate', async interaction => {
   // --- SÉLECTION DE CATÉGORIE (Select Menu) ---
   if (interaction.customId === 'ticket_category_select') {
     const selected = interaction.values[0]; // ex: 'ticket_recrutement'
+    
+    if (selected === 'ticket_cancel') {
+      return interaction.reply({ content: '❌ Sélection annulée.', ephemeral: true });
+    }
+
     const category = TICKET_CATEGORIES[selected];
     if (!category) return;
 

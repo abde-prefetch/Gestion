@@ -41,6 +41,12 @@ module.exports = [
               value: 'ticket_gangwars',
               emoji: '⚔️',
             },
+            {
+              label: 'Annuler la sélection',
+              description: 'Cliquez ici pour pouvoir rouvrir un ticket plus tard.',
+              value: 'ticket_cancel',
+              emoji: '❌',
+            }
           ])
       );
 
