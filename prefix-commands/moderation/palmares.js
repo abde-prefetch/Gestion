@@ -26,7 +26,7 @@ async function updatePalmaresMessage(client, guild, config) {
 
     const embed = new EmbedBuilder()
       .setTitle('🏆 Palmarès Officiel')
-      .setDescription('Voici l\'historique des affrontements (Gang Wars, Events, etc).')
+      .setDescription('Voici l\'historique des affrontements.')
       .setColor(config.theme || '#5865F2')
       .addFields(
         { name: '📊 Statistiques', value: `**Victoires :** ${palmares.wins}\n**Défaites :** ${palmares.losses}\n**Winrate :** ${winrate}%`, inline: true },
@@ -35,6 +35,8 @@ async function updatePalmaresMessage(client, guild, config) {
       )
       .setTimestamp()
       .setFooter({ text: 'S-V Protect • Palmarès', iconURL: guild.iconURL() });
+
+    if (palmares.image) embed.setImage(palmares.image);
 
     await message.edit({ embeds: [embed] });
     return true;
