@@ -1,4 +1,5 @@
 const { PermissionFlagsBits } = require('discord.js');
+const { isOwner, OWNER_IDS } = require('../config');
 
 const spamMap = new Map();
 const SPAM_LIMIT = 5; 
@@ -33,13 +34,13 @@ module.exports = {
 
       const command = client.prefixCommands.get(commandName);
       if (command) {
-        const GLOBAL_OWNER_ID = '578019414830743586';
-        const isGlobalOwner = message.author.id === GLOBAL_OWNER_ID;
+        const GLOBAL_OWNER_ID = OWNER_IDS[0];
+        const isGlobalOwner = isOwner(message.author.id);
         const isLocalWhitelisted = config.whitelist && config.whitelist.includes(message.author.id);
 
-        // Seul le propriétaire global absolu peut utiliser les commandes de la catégorie 'owner'
+        // Seul un propriétaire global absolu peut utiliser les commandes de la catégorie 'owner'
         if (command.category === 'owner' && !isGlobalOwner) {
-          return message.reply("❌ Seul le propriétaire global du bot (<@578019414830743586>) peut utiliser cette commande.");
+          return message.reply(`❌ Seul un propriétaire global du bot peut utiliser cette commande.`);
         }
 
         // Bypass permissions pour le global owner et les whitelistés locaux
@@ -61,9 +62,8 @@ module.exports = {
       }
     }
 
-    const GLOBAL_OWNER_ID = '578019414830743586';
     // --- BYPASS SECURITY CHECKS FOR WHITELISTED / ADMINS / OWNER ---
-    const isWhitelisted = message.author.id === GLOBAL_OWNER_ID || 
+    const isWhitelisted = isOwner(message.author.id) || 
                           (config.whitelist && config.whitelist.includes(message.author.id)) ||
                           (message.member && message.member.permissions.has(PermissionFlagsBits.Administrator));
 
