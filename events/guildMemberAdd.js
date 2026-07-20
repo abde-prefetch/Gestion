@@ -54,10 +54,23 @@ module.exports = {
     // --- AUTOROLE ---
     const config = client.db.getGuildConfig(member.guild.id);
     if (config && config.autorole) {
-      const role = member.guild.roles.cache.get(config.autorole);
-      if (role) {
-        member.roles.add(role).catch(err => console.error(`Impossible d'ajouter l'autorole à ${member.user.tag}:`, err));
-      }
+      // Tenter de récupérer le rôle dans le cache ou de le fetch
+      member.guild.roles.fetch(config.autorole)
+        .then(role => {
+          if (role) {
+            member.roles.add(role).catch(err => {
+              console.error(`Impossible d'ajouter l'autorole à ${member.user.tag}:`, err);
+              // Avertir dans les logs si configuré en cas de problème de permissions / hiérarchie
+              if (config.logsChannel) {
+                const logsChan = member.guild.channels.cache.get(config.logsChannel);
+                if (logsChan) {
+                  logsChan.send(`⚠️ **Erreur Autorole** : Impossible d'attribuer le rôle <@&${role.id}> à ${member} (Vérifiez que le rôle de mon bot est positionné **au-dessus** du rôle à attribuer dans les paramètres des rôles du serveur).`).catch(() => {});
+                }
+              }
+            });
+          }
+        })
+        .catch(err => console.error(`Erreur lors du fetch du rôle d'autorole:`, err));
     }
   },
 };
