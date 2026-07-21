@@ -13,6 +13,8 @@ module.exports = {
   async execute(message, client) {
     if (message.author.bot || !message.guild) return;
 
+    console.log(`[DEBUG] Bot Gestion - Message reçu de ${message.author.tag} (${message.author.id}) : "${message.content}"`);
+
     const guildId = message.guild.id;
     const config = client.db.getGuildConfig(guildId);
     const globalData = client.db.getGlobalData();
