@@ -100,35 +100,41 @@ module.exports = {
       }
     }
 
-    // --- ANTI-LINK ---
-    if (config.antiLink) {
-      const linkRegex = /(https?:\/\/[^\s]+)/g;
-      if (linkRegex.test(message.content)) {
-        // Check if anti-invite is also on and it is an invite link
-        const isInvite = /(discord\.gg|discord\.com\/invite)/g.test(message.content);
-        if (isInvite && config.antiInvite) {
-          // Handled below or treated as link
-        }
-        try {
-          await message.delete();
-          await message.channel.send(`⚠️ ${message.author}, les liens ne sont pas autorisés sur ce serveur.`);
-          return; 
-        } catch (err) {
-          console.error("Impossible de supprimer le lien :", err);
-        }
-      }
-    }
+    // --- NETTOYAGE DU CONTENU POUR EVITER LES BYPASS MARCKDOWN ---
+    // Enlève les caractères de formatage Discord (ex: #, *, _, ~, `, \, |, /) qui cassent les regex
+    const cleanedContent = message.content
+      .toLowerCase()
+      .replace(/[*_~`\\#|]/g, '') // Supprime le markdown de formatage et les antislashs
+      .replace(/\s+/g, '');       // Supprime tous les espaces pour contrer les "discord . gg" ou "http : //"
 
     // --- ANTI-INVITE ---
+    // On le gère en premier car une invitation est aussi un lien
     if (config.antiInvite) {
-      const inviteRegex = /(discord\.gg|discord\.com\/invite)/g;
-      if (inviteRegex.test(message.content)) {
+      // Détecte "discord.gg", "discord.com/invite", "discordapp.com/invite"
+      const inviteRegex = /(discord\.gg|discord\.com\/invite|discordapp\.com\/invite|discord\.io|discord\.me)/i;
+      if (inviteRegex.test(cleanedContent)) {
         try {
           await message.delete();
           await message.channel.send(`⚠️ ${message.author}, les invitations Discord ne sont pas autorisées.`);
           return;
         } catch (err) {
-          console.error(err);
+          console.error("Erreur lors de la suppression de l'invitation :", err);
+        }
+      }
+    }
+
+    // --- ANTI-LINK ---
+    if (config.antiLink) {
+      // Détecte les protocoles "http://", "https://" et "www." mais aussi les formats de domaine classiques
+      // comme "site.com", "site.fr/chemin" même attachés à d'autres caractères
+      const linkRegex = /(https?:\/\/|www\.|[a-z0-9]+([\-\.]{1}[a-z0-9]+)*\.(com|fr|net|org|io|info|gov|edu|me|xyz|gg|co|tk|cf|ga|gq|ml|us|uk|ca|de|jp|cn|ru|it|nl|se|no|dk|ch|at|es|pt|br|in|au|pl|ua|tr|gr|ro|cz|hu|ro|be|lu|ie|is|fi|ee|lv|lt|by|md|rs|hr|si|bg|al|mk|me|ge|am|az)(\/.*)?)/i;
+      if (linkRegex.test(cleanedContent)) {
+        try {
+          await message.delete();
+          await message.channel.send(`⚠️ ${message.author}, les liens ne sont pas autorisés sur ce serveur.`);
+          return; 
+        } catch (err) {
+          console.error("Erreur lors de la suppression du lien :", err);
         }
       }
     }
