@@ -181,15 +181,46 @@ client.on('interactionCreate', async interaction => {
     }
   }
 
-  // --- FERMETURE DE TICKET ---
+  // --- ÉTAPE 1 : CLIC SUR FERMER (CONFIRMATION ÉPHÉMÈRE) ---
   if (interaction.customId === 'close_ticket') {
-    await interaction.deferUpdate();
+    const confirmRow = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId('confirm_close_ticket')
+        .setLabel('Confirmer la fermeture')
+        .setStyle(ButtonStyle.Danger),
+      new ButtonBuilder()
+        .setCustomId('cancel_close_ticket')
+        .setLabel('Annuler')
+        .setStyle(ButtonStyle.Secondary)
+    );
+
+    return interaction.reply({
+      content: '⚠️ **Êtes-vous sûr de vouloir fermer ce ticket ?**\nCette action est irréversible et supprimera le salon dans 5 secondes.',
+      components: [confirmRow],
+      ephemeral: true
+    });
+  }
+
+  // --- ÉTAPE 2 : ANNULATION DE LA FERMETURE ---
+  if (interaction.customId === 'cancel_close_ticket') {
+    return interaction.update({
+      content: '❌ **Fermeture du ticket annulée.**',
+      components: []
+    });
+  }
+
+  // --- ÉTAPE 3 : CONFIRMATION DE LA FERMETURE (TRANSCRIPT HTML + SUPPRESSION) ---
+  if (interaction.customId === 'confirm_close_ticket') {
+    await interaction.update({
+      content: '✅ **Fermeture confirmée. Génération du transcript...**',
+      components: []
+    });
 
     const channel = interaction.channel;
     const topic = channel.topic || '';
     const creatorId = topic.match(/Ticket de (\d+)/)?.[1];
 
-    await channel.send("🔒 Fermeture du ticket en cours, génération du transcript...");
+    await channel.send("🔒 **Fermeture du ticket en cours, suppression du salon dans 5 secondes...**");
 
     // Récupérer les messages
     let messages;
@@ -199,23 +230,198 @@ client.on('interactionCreate', async interaction => {
       messages = [];
     }
 
-    // Générer le transcript texte
-    let transcriptText = `TRANSCRIPT DU TICKET : ${channel.name}\n`;
-    transcriptText += `Ouvert par l'utilisateur ID: ${creatorId || 'Inconnu'}\n`;
-    transcriptText += `Généré le ${new Date().toLocaleString('fr-FR')}\n`;
-    transcriptText += `=========================================\n\n`;
-
     const sortedMessages = Array.from(messages.values()).reverse();
+
+    // Générer le transcript HTML Premium
+    let htmlContent = `<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Transcript - ${channel.name}</title>
+  <style>
+    body {
+      background-color: #313338;
+      color: #dbdee1;
+      font-family: 'gg sans', 'Helvetica Neue', Arial, sans-serif;
+      margin: 0;
+      padding: 30px;
+    }
+    .header {
+      padding-bottom: 20px;
+      border-bottom: 1px solid #3f4147;
+      margin-bottom: 25px;
+    }
+    .header h1 {
+      color: #f2f3f5;
+      font-size: 26px;
+      margin: 0 0 8px 0;
+      display: flex;
+      align-items: center;
+    }
+    .header h1 span {
+      background: #5865f2;
+      color: #ffffff;
+      font-size: 12px;
+      padding: 4px 8px;
+      border-radius: 4px;
+      margin-left: 12px;
+      font-weight: 500;
+    }
+    .header p {
+      font-size: 14px;
+      color: #949ba4;
+      margin: 4px 0;
+    }
+    .chat-container {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .message {
+      display: flex;
+      align-items: flex-start;
+    }
+    .avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      margin-right: 16px;
+      background-color: #4e5058;
+      object-fit: cover;
+    }
+    .msg-body {
+      display: flex;
+      flex-direction: column;
+    }
+    .msg-header {
+      display: flex;
+      align-items: baseline;
+      margin-bottom: 4px;
+    }
+    .author {
+      font-weight: 600;
+      color: #f2f3f5;
+      font-size: 16px;
+      margin-right: 8px;
+    }
+    .bot-tag {
+      background-color: #5865f2;
+      color: white;
+      font-size: 9px;
+      padding: 1px 4px;
+      border-radius: 3px;
+      margin-right: 8px;
+      text-transform: uppercase;
+      font-weight: 700;
+    }
+    .time {
+      font-size: 12px;
+      color: #949ba4;
+    }
+    .text {
+      font-size: 15px;
+      line-height: 1.375rem;
+      white-space: pre-wrap;
+      word-break: break-word;
+      color: #dbdee1;
+    }
+    .embed {
+      margin-top: 8px;
+      background-color: #2b2d31;
+      border-left: 4px solid #5865f2;
+      border-radius: 4px;
+      padding: 12px 16px;
+      max-width: 520px;
+    }
+    .embed-title {
+      font-weight: 600;
+      font-size: 15px;
+      color: #f2f3f5;
+      margin-bottom: 4px;
+    }
+    .embed-description {
+      font-size: 14px;
+      color: #dbdee1;
+      white-space: pre-wrap;
+    }
+    .embed-field {
+      margin-top: 8px;
+    }
+    .embed-field-name {
+      font-weight: 600;
+      font-size: 13px;
+      color: #f2f3f5;
+      margin-bottom: 2px;
+    }
+    .embed-field-value {
+      font-size: 13px;
+      color: #dbdee1;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>🎟️ Transcript : ${channel.name} <span>TICKET</span></h1>
+    <p><strong>Serveur :</strong> ${interaction.guild.name}</p>
+    <p><strong>Créateur du ticket :</strong> <span style="color: #5865f2;">ID: ${creatorId || 'Inconnu'}</span></p>
+    <p><strong>Date d'archivage :</strong> ${new Date().toLocaleString('fr-FR')}</p>
+  </div>
+  <div class="chat-container">`;
+
     for (const msg of sortedMessages) {
-      if (msg.author.bot && msg.embeds.length > 0) {
-        transcriptText += `[${msg.createdAt.toLocaleString('fr-FR')}] [BOT] ${msg.author.tag} : (Embed)\n`;
-      } else {
-        transcriptText += `[${msg.createdAt.toLocaleString('fr-FR')}] ${msg.author.tag} : ${msg.content}\n`;
+      const avatarUrl = msg.author.displayAvatarURL({ forceStatic: true, extension: 'png', size: 64 });
+      const isBot = msg.author.bot;
+      const botBadge = isBot ? `<span class="bot-tag">BOT</span>` : '';
+      const formattedDate = msg.createdAt.toLocaleString('fr-FR');
+
+      htmlContent += `
+    <div class="message">
+      <img class="avatar" src="${avatarUrl}" alt="Avatar">
+      <div class="msg-body">
+        <div class="msg-header">
+          <span class="author">${msg.author.tag}</span>
+          ${botBadge}
+          <span class="time">${formattedDate}</span>
+        </div>
+        <div class="text">${msg.content || ''}</div>`;
+
+      // Rendre les embeds du bot
+      if (msg.embeds && msg.embeds.length > 0) {
+        for (const emb of msg.embeds) {
+          const colorHex = emb.hexColor || '#5865f2';
+          htmlContent += `
+        <div class="embed" style="border-left-color: ${colorHex};">`;
+          if (emb.title) {
+            htmlContent += `          <div class="embed-title">${emb.title}</div>`;
+          }
+          if (emb.description) {
+            htmlContent += `          <div class="embed-description">${emb.description}</div>`;
+          }
+          if (emb.fields && emb.fields.length > 0) {
+            for (const f of emb.fields) {
+              htmlContent += `
+          <div class="embed-field">
+            <div class="embed-field-name">${f.name}</div>
+            <div class="embed-field-value">${f.value}</div>
+          </div>`;
+            }
+          }
+          htmlContent += `        </div>`;
+        }
       }
+
+      htmlContent += `
+      </div>
+    </div>`;
     }
 
-    const buffer = Buffer.from(transcriptText, 'utf-8');
-    const attachment = new AttachmentBuilder(buffer, { name: `transcript-${channel.name}.txt` });
+    htmlContent += `
+  </div>
+</body>
+</html>`;
+
+    const buffer = Buffer.from(htmlContent, 'utf-8');
+    const attachment = new AttachmentBuilder(buffer, { name: `transcript-${channel.name}.html` });
 
     // Envoyer en DM au créateur
     if (creatorId) {
@@ -223,7 +429,7 @@ client.on('interactionCreate', async interaction => {
         const creator = await client.users.fetch(creatorId);
         const dmEmbed = new EmbedBuilder()
           .setTitle("📁 Ticket Fermé")
-          .setDescription(`Votre ticket sur le serveur **${interaction.guild.name}** a été fermé.\nVous trouverez ci-joint le transcript de vos échanges.`)
+          .setDescription(`Votre ticket sur le serveur **${interaction.guild.name}** a été fermé.\nVous trouverez ci-joint le transcript interactif en format HTML.`)
           .setColor(config.theme || '#5865F2')
           .setTimestamp();
 
@@ -233,13 +439,13 @@ client.on('interactionCreate', async interaction => {
       }
     }
 
-    // Optionnel : envoyer les logs dans le salon de logs s'il est configuré
+    // Envoyer dans le salon de logs de transcript s'il est configuré
     const targetChannelId = config.transcriptChannel || config.logsChannel;
     if (targetChannelId) {
       const logsChan = interaction.guild.channels.cache.get(targetChannelId);
       if (logsChan) {
         const logEmbed = new EmbedBuilder()
-          .setTitle(`📁 Transcript - Ticket ${channel.name}`)
+          .setTitle(`📁 Transcript HTML - Ticket ${channel.name}`)
           .setDescription(`Le ticket de <@${creatorId || interaction.user.id}> a été fermé par ${interaction.user}.`)
           .setColor('#FF0000')
           .setTimestamp();
