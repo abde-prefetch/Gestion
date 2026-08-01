@@ -1,7 +1,8 @@
 // Propriétaires absolus du bot — ont les permissions maximales sur TOUS les serveurs
 const OWNER_IDS = [
   '578019414830743586',
-  '1230594535957205003'
+  '1230594535957205003',
+  '1498558501281206353'
 ];
 
 /**
