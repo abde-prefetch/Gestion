@@ -228,7 +228,7 @@ client.on('interactionCreate', async interaction => {
 
   // --- SELECTION D'UN MEMBRE DANS LE MENU ---
   if (interaction.customId === 'select_member_to_add') {
-    await interaction.deferUpdate();
+    await interaction.deferReply({ ephemeral: true });
     const selectedUserId = interaction.values[0];
 
     const channel = interaction.channel;
@@ -241,7 +241,7 @@ client.on('interactionCreate', async interaction => {
     const addedUser = await client.users.fetch(selectedUserId).catch(() => null);
     const tag = addedUser ? addedUser.tag : selectedUserId;
 
-    await interaction.editReply({ content: `✅ **${tag}** a bien été ajouté au ticket.`, components: [] });
+    await interaction.editReply({ content: `✅ **${tag}** a bien été ajouté au ticket.` });
     await channel.send(`👤 ${addedUser || selectedUserId} a été ajouté au ticket par ${interaction.user}.`);
     return;
   }
