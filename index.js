@@ -64,7 +64,7 @@ if (fs.existsSync(eventsPath)) {
   }
 }
 
-const { ChannelType, PermissionFlagsBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, AttachmentBuilder, StringSelectMenuBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
+const { ChannelType, PermissionFlagsBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, AttachmentBuilder, StringSelectMenuBuilder, UserSelectMenuBuilder } = require('discord.js');
 
 // Catégories de tickets
 const TICKET_CATEGORIES = {
@@ -209,44 +209,40 @@ client.on('interactionCreate', async interaction => {
     }
   }
 
-  // --- BOUTON AJOUTER UN MEMBRE ---
+  // --- BOUTON AJOUTER UN MEMBRE : affiche un menu de sélection éphémère ---
   if (interaction.customId === 'add_member_ticket') {
-    const modal = new ModalBuilder()
-      .setCustomId('add_member_modal')
-      .setTitle('Ajouter un membre au ticket');
+    const selectRow = new ActionRowBuilder().addComponents(
+      new UserSelectMenuBuilder()
+        .setCustomId('select_member_to_add')
+        .setPlaceholder('Sélectionner un membre à ajouter...')
+        .setMinValues(1)
+        .setMaxValues(1)
+    );
 
-    const userInput = new TextInputBuilder()
-      .setCustomId('member_id_input')
-      .setLabel('ID ou @mention du membre')
-      .setPlaceholder('Ex: 123456789012345678')
-      .setStyle(TextInputStyle.Short)
-      .setRequired(true);
-
-    modal.addComponents(new ActionRowBuilder().addComponents(userInput));
-    return interaction.showModal(modal);
+    return interaction.reply({
+      content: '👤 **Choisissez un membre à ajouter au ticket :**',
+      components: [selectRow],
+      ephemeral: true
+    });
   }
 
-  // --- SOUMISSION DU MODAL AJOUTER UN MEMBRE ---
-  if (interaction.customId === 'add_member_modal') {
-    await interaction.deferReply({ ephemeral: true });
-    const rawInput = interaction.fields.getTextInputValue('member_id_input').trim().replace(/[<@!>]/g, '');
-    
-    let targetUser = null;
-    try {
-      targetUser = await client.users.fetch(rawInput);
-    } catch {
-      return interaction.editReply('\u274c Membre introuvable. Vérifiez l\'ID Discord et réessayez.');
-    }
+  // --- SELECTION D'UN MEMBRE DANS LE MENU ---
+  if (interaction.customId === 'select_member_to_add') {
+    await interaction.deferUpdate();
+    const selectedUserId = interaction.values[0];
 
     const channel = interaction.channel;
-    await channel.permissionOverwrites.edit(targetUser.id, {
+    await channel.permissionOverwrites.edit(selectedUserId, {
       ViewChannel: true,
       SendMessages: true,
       ReadMessageHistory: true
     }).catch(() => {});
 
-    await interaction.editReply(`\u2705 **${targetUser.tag}** a bien été ajouté au ticket.`);
-    await channel.send(`\ud83d\udc64 ${targetUser} a été ajouté au ticket par ${interaction.user}.`);
+    const addedUser = await client.users.fetch(selectedUserId).catch(() => null);
+    const tag = addedUser ? addedUser.tag : selectedUserId;
+
+    await interaction.editReply({ content: `✅ **${tag}** a bien été ajouté au ticket.`, components: [] });
+    await channel.send(`👤 ${addedUser || selectedUserId} a été ajouté au ticket par ${interaction.user}.`);
     return;
   }
 
