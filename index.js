@@ -74,7 +74,7 @@ const TICKET_CATEGORIES = {
 };
 
 client.on('interactionCreate', async interaction => {
-  if (!interaction.isButton() && !interaction.isStringSelectMenu()) return;
+  if (!interaction.isButton() && !interaction.isStringSelectMenu() && !interaction.isUserSelectMenu() && !interaction.isModalSubmit()) return;
 
   const guildId = interaction.guild.id;
   const config = client.db.getGuildConfig(guildId);
