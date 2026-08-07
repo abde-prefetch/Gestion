@@ -64,7 +64,7 @@ if (fs.existsSync(eventsPath)) {
   }
 }
 
-const { ChannelType, PermissionFlagsBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, AttachmentBuilder, StringSelectMenuBuilder } = require('discord.js');
+const { ChannelType, PermissionFlagsBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, AttachmentBuilder, StringSelectMenuBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 
 // Catégories de tickets
 const TICKET_CATEGORIES = {
@@ -110,6 +110,15 @@ client.on('interactionCreate', async interaction => {
         ],
       });
 
+      // Donner acces au role ticket s'il est configure
+      if (config.ticketRole) {
+        await channel.permissionOverwrites.edit(config.ticketRole, {
+          ViewChannel: true,
+          SendMessages: true,
+          ReadMessageHistory: true
+        }).catch(() => {});
+      }
+
       const welcomeEmbed = new EmbedBuilder()
         .setTitle(`${category.emoji} Ticket — ${category.label}`)
         .setDescription(`Bonjour ${interaction.user}, votre ticket **${category.label}** a bien été créé.\nL'équipe du serveur vous répondra dès que possible.`)
@@ -119,9 +128,14 @@ client.on('interactionCreate', async interaction => {
       const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
           .setCustomId('close_ticket')
-          .setLabel('Fermer le ticket')
+          .setLabel('Fermer')
           .setEmoji('🔒')
-          .setStyle(ButtonStyle.Danger)
+          .setStyle(ButtonStyle.Danger),
+        new ButtonBuilder()
+          .setCustomId('add_member_ticket')
+          .setLabel('Ajouter un membre')
+          .setEmoji('👤')
+          .setStyle(ButtonStyle.Secondary)
       );
 
       await channel.send({ content: `${interaction.user} | @here`, embeds: [welcomeEmbed], components: [row] });
@@ -159,26 +173,81 @@ client.on('interactionCreate', async interaction => {
         ],
       });
 
-      const welcomeEmbed = new EmbedBuilder()
-        .setTitle(`🎟️ Ticket ouvert`)
+      // Donner acces au role ticket s'il est configure
+      if (config.ticketRole) {
+        await channel.permissionOverwrites.edit(config.ticketRole, {
+          ViewChannel: true,
+          SendMessages: true,
+          ReadMessageHistory: true
+        }).catch(() => {});
+      }
+
+      const welcomeEmbed2 = new EmbedBuilder()
+        .setTitle(`🏟️ Ticket ouvert`)
         .setDescription(`Bonjour ${interaction.user}, posez votre question ici. L'équipe du serveur vous répondra dès que possible.`)
         .setColor(config.theme || '#5865F2')
         .setTimestamp();
 
-      const row = new ActionRowBuilder().addComponents(
+      const row2 = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
           .setCustomId('close_ticket')
-          .setLabel('Fermer le ticket')
+          .setLabel('Fermer')
           .setEmoji('🔒')
-          .setStyle(ButtonStyle.Danger)
+          .setStyle(ButtonStyle.Danger),
+        new ButtonBuilder()
+          .setCustomId('add_member_ticket')
+          .setLabel('Ajouter un membre')
+          .setEmoji('👤')
+          .setStyle(ButtonStyle.Secondary)
       );
 
-      await channel.send({ content: `${interaction.user} | @here`, embeds: [welcomeEmbed], components: [row] });
+      await channel.send({ content: `${interaction.user} | @here`, embeds: [welcomeEmbed2], components: [row2] });
       return interaction.editReply({ content: `✅ Votre ticket a été créé : ${channel}` });
     } catch (err) {
       console.error(err);
       return interaction.editReply({ content: "❌ Impossible de créer le ticket." });
     }
+  }
+
+  // --- BOUTON AJOUTER UN MEMBRE ---
+  if (interaction.customId === 'add_member_ticket') {
+    const modal = new ModalBuilder()
+      .setCustomId('add_member_modal')
+      .setTitle('Ajouter un membre au ticket');
+
+    const userInput = new TextInputBuilder()
+      .setCustomId('member_id_input')
+      .setLabel('ID ou @mention du membre')
+      .setPlaceholder('Ex: 123456789012345678')
+      .setStyle(TextInputStyle.Short)
+      .setRequired(true);
+
+    modal.addComponents(new ActionRowBuilder().addComponents(userInput));
+    return interaction.showModal(modal);
+  }
+
+  // --- SOUMISSION DU MODAL AJOUTER UN MEMBRE ---
+  if (interaction.customId === 'add_member_modal') {
+    await interaction.deferReply({ ephemeral: true });
+    const rawInput = interaction.fields.getTextInputValue('member_id_input').trim().replace(/[<@!>]/g, '');
+    
+    let targetUser = null;
+    try {
+      targetUser = await client.users.fetch(rawInput);
+    } catch {
+      return interaction.editReply('\u274c Membre introuvable. Vérifiez l\'ID Discord et réessayez.');
+    }
+
+    const channel = interaction.channel;
+    await channel.permissionOverwrites.edit(targetUser.id, {
+      ViewChannel: true,
+      SendMessages: true,
+      ReadMessageHistory: true
+    }).catch(() => {});
+
+    await interaction.editReply(`\u2705 **${targetUser.tag}** a bien été ajouté au ticket.`);
+    await channel.send(`\ud83d\udc64 ${targetUser} a été ajouté au ticket par ${interaction.user}.`);
+    return;
   }
 
   // --- ÉTAPE 1 : CLIC SUR FERMER (CONFIRMATION ÉPHÉMÈRE) ---

@@ -81,5 +81,28 @@ module.exports = [
       client.db.updateGuildConfig(message.guild.id, { transcriptChannel: channel.id });
       return message.reply(`✅ Les transcripts des tickets seront maintenant envoyés dans ${channel}.`);
     }
+  },
+  {
+    name: 'setticketrole',
+    category: 'config',
+    description: "Configure le rôle qui aura automatiquement accès à tous les tickets à l'ouverture.",
+    async execute(message, args, client) {
+      if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) {
+        return message.reply("❌ Vous devez être administrateur pour utiliser cette commande.");
+      }
+
+      if (args[0]?.toLowerCase() === 'off') {
+        client.db.updateGuildConfig(message.guild.id, { ticketRole: null });
+        return message.reply("✅ Le rôle d'accès aux tickets a été retiré.");
+      }
+
+      const role = message.mentions.roles.first() || message.guild.roles.cache.get(args[0]);
+      if (!role) {
+        return message.reply("❌ Usage : `+setticketrole @role` ou `+setticketrole off` pour désactiver.");
+      }
+
+      client.db.updateGuildConfig(message.guild.id, { ticketRole: role.id });
+      return message.reply(`✅ Le rôle **${role.name}** aura maintenant accès à tous les tickets dès leur ouverture.`);
+    }
   }
 ];

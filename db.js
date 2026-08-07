@@ -87,7 +87,8 @@ module.exports = {
         welcomeImage: null,
         leaveChannel: null,
         leaveMessage: "Au revoir {member} ! Nous sommes désormais **{membercount}** sur le serveur.",
-        leaveImage: null
+        leaveImage: null,
+        ticketRole: null
       };
       saveToMongo(guildId);
     }
